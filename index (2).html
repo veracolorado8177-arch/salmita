@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA V.E.R.A. - Desafío de Cifrado Excel</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Terminal aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #030712; /* ultra dark */
+        }
+        .retro-title {
+            font-family: 'VT323', monospace;
+        }
+        /* Scanline effect */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.06),
+                rgba(0, 255, 0, 0.02),
+                rgba(0, 0, 255, 0.06)
+            );
+            background-size: 100% 4px, 6px 100%;
+            z-index: 999;
+            pointer-events: none;
+        }
+        /* CRT Glow */
+        .glow-green {
+            text-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+        .glow-red {
+            text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+        .border-neon {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+        }
+        .border-neon-error {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+        /* Custom scrollbar for terminals */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #15803d;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #22c55e;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .terminal-cursor {
+            animation: blink 1s infinite;
+        }
+        /* Glitch Animation */
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+        .glitch-hover:hover {
+            animation: glitch 0.3s linear infinite;
+        }
+    </style>
+</head>
+<body class="text-green-500 min-h-screen flex flex-col justify-between p-4 overflow-x-hidden selection:bg-green-900 selection:text-green-300">
+
+    <!-- Scanline overlays for CRT feel -->
+    <div class="scanlines"></div>
+
+    <!-- Header System Status -->
+    <header class="w-full max-w-5xl mx-auto border-b border-green-900 pb-4 mb-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center space-x-3">
+            <span class="relative flex h-3.5 w-3.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500"></span>
+            </span>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-widest glow-green flex items-center gap-2">
+                    V.E.R.A. <span class="text-xs px-2 py-0.5 bg-green-950 text-green-400 rounded border border-green-800">v3.9.0-ACTIVE</span>
+                </h1>
+                <p class="text-xs text-green-700 tracking-wider uppercase">Virtual Evaluator for Risk Assessment</p>
+            </div>
+        </div>
+        
+        <!-- Live System Specs -->
+        <div class="flex items-center gap-6 text-xs text-green-600">
+            <div class="hidden sm:block">
+                <span class="text-green-800">ENCRYPTION:</span> AES-256-CBC
+            </div>
+            <div>
+                <span class="text-green-800">INTEGRITY CHECK:</span> <span class="text-green-400">PASSED</span>
+            </div>
+            <div class="bg-green-950 px-3 py-1.5 border border-green-800 rounded">
+                <span class="text-red-500 animate-pulse font-bold" id="system-countdown">SISTEMA COMPROMETIDO</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="w-full max-w-5xl mx-auto flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch mb-4">
+        
+        <!-- Sidebar stats -->
+        <div class="lg:col-span-3 border border-green-900 bg-black/60 p-4 rounded flex flex-col justify-between gap-4 border-neon">
+            <div>
+                <div class="text-xs text-green-700 mb-2 uppercase tracking-widest border-b border-green-900 pb-1">Estado de la Sesión</div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-green-600">PREGUNTAS EVALUADAS:</span>
+                            <span class="text-green-400 font-bold" id="stat-progress">0 / 20</span>
+                        </div>
+                        <div class="w-full bg-green-950/50 h-2 rounded overflow-hidden border border-green-900">
+                            <div id="stat-progress-bar" class="bg-green-500 h-full transition-all duration-300 shadow-[0_0_10px_#22c55e]" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-green-950/20 p-2 border border-green-950 rounded">
+                            <div class="text-[10px] text-green-700">ACIERTOS</div>
+                            <div class="text-2xl font-bold text-green-400 glow-green" id="stat-correct">00</div>
+                        </div>
+                        <div class="bg-red-950/10 p-2 border border-red-950/50 rounded">
+                            <div class="text-[10px] text-red-700">FALLOS</div>
+                            <div class="text-2xl font-bold text-red-500 glow-red" id="stat-incorrect">00</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black border border-green-950 p-2.5 rounded">
+                        <div class="text-[10px] text-green-700 mb-1">CORTAFUEGOS (SEG.)</div>
+                        <div class="text-3xl font-bold tracking-widest text-center text-red-500 glow-red" id="timer-display">
+                            05:00
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-[10px] text-green-800 space-y-1 bg-black/80 p-2.5 rounded border border-green-950">
+                <div>IP: 192.168.82.109</div>
+                <div>ID DE TERMINAL: SEC-EXCEL-V2</div>
+                <div>ALERTA: Cualquier filtración de datos resultará en purga inmediata del archivo .xlsx objetivo.</div>
+            </div>
+        </div>
+
+        <!-- Chat / Interactive Area -->
+        <div class="lg:col-span-9 border border-green-900 bg-black/40 rounded flex flex-col justify-between overflow-hidden border-neon relative">
+            
+            <!-- Terminal Header Ribbon -->
+            <div class="bg-green-950/40 px-4 py-2 border-b border-green-900 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-xs uppercase text-green-400 font-bold tracking-widest">COMMS CON V.E.R.A.</span>
+                </div>
+                <div class="text-[10px] text-green-700 font-mono">ENLACE DIRECTO SEGURO</div>
+            </div>
+
+            <!-- Messages Log -->
+            <div id="chat-messages" class="flex-grow p-4 overflow-y-auto space-y-4 max-h-[380px] lg:max-h-[420px] text-sm scroll-smooth">
+                <!-- VERA Welcome Message -->
+                <div class="flex flex-col gap-1 max-w-[85%]">
+                    <span class="text-xs text-green-600 uppercase font-bold">[SISTEMA V.E.R.A.]</span>
+                    <div class="bg-green-950/30 border border-green-900 p-3 rounded-tr-xl rounded-b-xl text-green-400">
+                        Detecto intruso en mi nodo de seguridad de Excel. Se ha iniciado el protocolo de evaluación táctica para prevenir la encriptación maliciosa o descifrado forzado de tus bases de datos. 
+                        <br><br>
+                        Responderás **20 preguntas cruciales** sobre criptografía, protección y seguridad de hojas de cálculo de Excel. Si fallas demasiado, el sistema colapsará. ¿Estás listo para el escaneo intelectual?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal Input / Actions Area -->
+            <div id="interactive-area" class="p-4 border-t border-green-900 bg-black/95">
+                
+                <!-- Start Button (shown initially) -->
+                <div id="start-screen" class="text-center py-6">
+                    <p class="text-xs text-green-600 mb-4 uppercase tracking-widest">AUTORIZACIÓN DE SEGURIDAD REQUERIDA</p>
+                    <button onclick="startGame()" class="px-8 py-3 bg-green-950 border border-green-500 hover:bg-green-500 hover:text-black transition-all duration-300 rounded font-bold uppercase tracking-widest text-sm glitch-hover glow-green">
+                        INICIAR CONEXIÓN Y PRUEBA
+                    </button>
+                </div>
+
+                <!-- Answer Options (hidden initially) -->
+                <div id="quiz-screen" class="hidden">
+                    <div class="text-xs text-green-600 mb-3 uppercase tracking-widest flex justify-between items-center border-b border-green-950 pb-2">
+                        <span>Selecciona el protocolo de respuesta correcto:</span>
+                        <span id="current-question-num" class="text-green-400 font-bold">PREGUNTA 01 / 20</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="options-container">
+                        <!-- Options generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- End/Summary Screen (hidden initially) -->
+                <div id="end-screen" class="hidden text-center py-4">
+                    <h3 class="retro-title text-3xl font-bold mb-2 uppercase tracking-wide glow-green" id="end-title">ANÁLISIS COMPLETADO</h3>
+                    <p class="text-xs text-green-600 mb-4" id="end-subtitle">V.E.R.A. ha procesado tus resultados del descifrado de seguridad.</p>
+
+                    <div class="max-w-md mx-auto grid grid-cols-2 gap-4 mb-6 text-left">
+                        <div class="bg-black/80 border border-green-900 p-3 rounded">
+                            <span class="text-[10px] text-green-700 block">EVALUACIÓN FINAL</span>
+                            <span class="text-xl font-bold text-green-400" id="final-rating">SOBRESALIENTE</span>
+                        </div>
+                        <div class="bg-black/80 border border-green-900 p-3 rounded">
+                            <span class="text-[10px] text-green-700 block">EFICACIA</span>
+                            <span class="text-xl font-bold text-green-400" id="final-accuracy">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <button onclick="resetGame()" class="px-6 py-2.5 bg-green-950 border border-green-500 hover:bg-green-500 hover:text-black transition-all duration-300 rounded font-bold uppercase text-xs tracking-wider">
+                            VOLVER A INTENTAR
+                        </button>
+                        <button onclick="showReport()" class="px-6 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-400 hover:border-green-500 hover:text-green-500 transition-all duration-300 rounded font-bold uppercase text-xs tracking-wider">
+                            VER BITÁCORA DE ERRORES
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Error/Log Modal (for detailed final review of responses) -->
+    <div id="report-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-[#030712] border border-green-900 w-full max-w-3xl rounded p-6 max-h-[85vh] flex flex-col justify-between border-neon">
+            <div>
+                <div class="flex justify-between items-center border-b border-green-950 pb-3 mb-4">
+                    <h3 class="text-lg font-bold text-green-400 tracking-wider glow-green">BITÁCORA DE ERRORES & APRENDIZAJE</h3>
+                    <button onclick="closeReport()" class="text-red-500 hover:text-red-400 font-bold uppercase text-xs tracking-wider">CERRAR</button>
+                </div>
+                <div class="overflow-y-auto max-h-[55vh] space-y-3 pr-2" id="report-content">
+                    <!-- Error report generated dynamically -->
+                </div>
+            </div>
+            <div class="border-t border-green-950 pt-4 mt-4 flex justify-end">
+                <button onclick="closeReport()" class="px-5 py-2 bg-green-950 hover:bg-green-500 hover:text-black transition-all border border-green-800 rounded font-bold text-xs uppercase tracking-wider">
+                    COMPRENDIDO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer System Specs -->
+    <footer class="w-full max-w-5xl mx-auto border-t border-green-950 pt-3 flex flex-wrap justify-between items-center text-[10px] text-green-800 gap-2">
+        <div>SISTEMA DETECTOR DE FILTRACIONES V.E.R.A. v3.9 — CONEXIÓN ENCRIPTADA</div>
+        <div>MANTÉN TUS CONTRASEÑAS AL RESPALDO — CRYPTO-EXCEL MODULE</div>
+    </footer>
+
+    <!-- Game Logic & Questions Database -->
+    <script>
+        // 20 questions carefully designed about Excel encryption
+        const questions = [
+            {
+                id: 1,
+                text: "Para encriptar por completo un archivo de Excel con una contraseña de apertura, ¿cuál es la ruta del menú correcto en Excel moderno?",
+                options: [
+                    "Archivo > Información > Proteger libro > Cifrar con contraseña",
+                    "Fórmula > Seguridad > Encriptación de datos",
+                    "Revisar > Proteger hoja > Establecer contraseña maestra",
+                    "Insertar > Firma digital > Cifrar"
+                ],
+                correct: 0,
+                hint: "El cifrado completo del archivo se realiza a nivel administrativo de información del libro."
+            },
+            {
+                id: 2,
+                text: "¿Qué algoritmo criptográfico estándar utiliza Excel (a partir de la versión 2013) para realizar el cifrado del libro completo?",
+                options: [
+                    "MD5 de 128 bits",
+                    "AES de 128 bits",
+                    "AES de 256 bits",
+                    "DES de 56 bits"
+                ],
+                correct: 2,
+                hint: "Usa el estándar de cifrado avanzado internacional por excelencia con la mayor longitud de clave disponible en la suite comercial."
+            },
+            {
+                id: 3,
+                text: "Si olvidas o pierdes la contraseña utilizada con la función 'Cifrar con contraseña' en Excel, ¿qué opción ofrece Microsoft para recuperar el acceso?",
+                options: [
+                    "Usar la herramienta interna 'Recuperar contraseña' en la pestaña Ayuda.",
+                    "No ofrece ninguna; Microsoft no puede recuperar contraseñas de archivos cifrados.",
+                    "Enviar el archivo al centro de soporte en línea de Microsoft para descifrado gratuito.",
+                    "Presionar 'Shift + F11' en la pantalla de carga para saltar el cifrado."
+                ],
+                correct: 1,
+                hint: "El cifrado simétrico moderno de Excel es matemáticamente seguro. Sin la clave, el contenido es inaccesible oficialmente."
+            },
+            {
+                id: 4,
+                text: "¿Cuál es el principal propósito de la función 'Proteger hoja actual' en Excel?",
+                options: [
+                    "Prevenir que usuarios no autorizados abran el archivo y lean su contenido.",
+                    "Cifrar el tráfico de red mientras la hoja se envía por correo electrónico.",
+                    "Evitar cambios accidentales o deliberados en celdas, formato o fórmulas por parte de otros.",
+                    "Habilitar la ejecución segura de macros avanzadas escritas en VBA."
+                ],
+                correct: 2,
+                hint: "Proteger la hoja impide edición de celdas no bloqueadas, pero permite leer el contenido si el libro ya está abierto."
+            },
+            {
+                id: 5,
+                text: "Para permitir que un usuario edite solo ciertas celdas en una hoja protegida, ¿qué paso se debe realizar antes de proteger la hoja?",
+                options: [
+                    "Convertir las celdas deseadas en hipervínculos externos.",
+                    "Seleccionar las celdas, ir a Formato de celdas > pestaña Proteger, y desmarcar 'Bloqueada'.",
+                    "Aplicar un formato condicional de color verde en las celdas permitidas.",
+                    "Escribir una macro que asigne permisos mediante ActiveSheet.Cell.Unprotect."
+                ],
+                correct: 1,
+                hint: "Por defecto, todas las celdas de Excel tienen la propiedad 'Bloqueada' activada, la cual solo surte efecto al proteger la hoja."
+            },
+            {
+                id: 6,
+                text: "¿Cuál es la diferencia de seguridad clave entre 'Cifrar con contraseña' y 'Proteger estructura del libro'?",
+                options: [
+                    "'Cifrar' impide abrir el archivo; 'Proteger estructura' impide añadir, mover, renombrar u ocultar hojas.",
+                    "'Proteger estructura' es de nivel militar y 'Cifrar' es residencial.",
+                    "No hay diferencia; ambos hacen exactamente lo mismo en base de datos cifrada.",
+                    "'Cifrar' solo bloquea el diseño visual mientras que 'Proteger estructura' oculta los datos de la celda."
+                ],
+                correct: 0,
+                hint: "'Cifrar' restringe el acceso de lectura total; 'Proteger estructura' solo cuida el orden y cantidad de las hojas."
+            },
+            {
+                id: 7,
+                text: "¿Qué ocurre cuando usas la herramienta 'Ocultar' en una pestaña de hoja en Excel sin proteger la estructura del libro?",
+                options: [
+                    "La hoja se cifra con un algoritmo AES-128 básico.",
+                    "Cualquier usuario puede hacer clic derecho en las pestañas y pulsar 'Mostrar' para verla.",
+                    "La hoja se destruye de la memoria temporal para evitar robos.",
+                    "Solo se puede acceder a ella mediante una consulta externa SQL."
+                ],
+                correct: 1,
+                hint: "Ocultar una pestaña sin proteger la estructura es seguridad por oscuridad muy débil; cualquiera la vuelve a mostrar con dos clics."
+            },
+            {
+                id: 8,
+                text: "Si deseas ocultar una hoja de forma avanzada para que NO se pueda revelar mediante el menú 'Mostrar' estándar de Excel, ¿qué propiedad debes modificar en el editor de VBA?",
+                options: [
+                    "Poner la propiedad Visible de la hoja en 'xlsSheetSuperHidden'",
+                    "Poner la propiedad Visible de la hoja en '2 - xlSheetVeryHidden'",
+                    "Cambiar el nombre de la hoja a 'vba_unreadable'",
+                    "Establecer la contraseña de protección en formato hexadecimal"
+                ],
+                correct: 1,
+                hint: "La propiedad 'xlSheetVeryHidden' oculta la hoja a nivel de aplicación; solo se hace visible nuevamente si se modifica desde VBA."
+            },
+            {
+                id: 9,
+                text: "Para proteger tu código y macros de Visual Basic para Aplicaciones (VBA) en Excel para que no sean alterados, ¿qué acción se realiza?",
+                options: [
+                    "Cifrar el libro completo con AES-256.",
+                    "En el editor VBA, ir a Propiedades del proyecto > pestaña Protección > marcar 'Bloquear proyecto para visualización' y definir contraseña.",
+                    "Guardar el libro como formato obsoleto .xls que encripta macros automáticamente.",
+                    "VBA no permite protección, siempre está libre para lectura."
+                ],
+                correct: 1,
+                hint: "El menú de propiedades dentro de la pantalla de programación VBA te permite colocar una clave exclusiva al editor."
+            },
+            {
+                id: 10,
+                text: "¿Cómo afecta el cifrado de archivos de Excel al rendimiento de las consultas de Power Query dirigidas a ese archivo?",
+                options: [
+                    "Las optimiza, haciéndolas 2 veces más rápidas al comprimir metadatos.",
+                    "Power Query no puede extraer datos directamente de un archivo de Excel cifrado con contraseña sin abrirlo o suministrar la contraseña.",
+                    "Power Query omite el cifrado y extrae la información sin problemas.",
+                    "Power Query corrompe el archivo cifrado permanentemente si intenta leerlo."
+                ],
+                correct: 1,
+                hint: "El cifrado restringe la lectura programática. Power Query te solicitará credenciales o contraseña para descifrar y procesar los bytes."
+            },
+            {
+                id: 11,
+                text: "¿Es posible cifrar un archivo de Excel si está guardado con el formato antiguo de Excel 97-2003 (.xls)?",
+                options: [
+                    "No, ese formato no permite ningún tipo de contraseña.",
+                    "Sí, pero utiliza un cifrado más antiguo y vulnerable que las versiones modernas (.xlsx).",
+                    "Sí, utiliza exactamente el mismo estándar AES-256 actual.",
+                    "Solo si se instala un complemento de cifrado de terceros."
+                ],
+                correct: 1,
+                hint: "El formato .xls soporta contraseñas pero su esquema es criptográficamente débil y vulnerable a ataques de fuerza bruta rápidos."
+            },
+            {
+                id: 12,
+                text: "Además de la contraseña de apertura, ¿qué otra contraseña se puede configurar al usar 'Guardar como > Herramientas > Opciones generales'?",
+                options: [
+                    "Contraseña de integridad para envío TLS.",
+                    "Contraseña de escritura (para permitir solo lectura a quien no la tenga).",
+                    "Contraseña de respaldo en nube de Microsoft.",
+                    "Contraseña de auditoría forense corporativa."
+                ],
+                correct: 1,
+                hint: "La contraseña de escritura permite que cualquiera abra el archivo para verlo, pero solo quien sepa la clave puede guardar cambios sobre él."
+            },
+            {
+                id: 13,
+                text: "¿Qué ocurre con el cifrado de un libro de Excel si lo guardas o exportas en formato de texto CSV (.csv)?",
+                options: [
+                    "El cifrado se mantiene gracias a una cabecera de seguridad oculta.",
+                    "El cifrado se pierde por completo porque los archivos CSV son texto plano sin soporte para protección.",
+                    "El archivo se convierte automáticamente a binario encriptado.",
+                    "El sistema operativo Windows cifra el archivo CSV en el disco usando EFS."
+                ],
+                correct: 1,
+                hint: "Los archivos de valores separados por comas son simples archivos de texto. No tienen metadatos ni estructura para almacenar claves."
+            },
+            {
+                id: 14,
+                text: "¿Qué significa el término 'Hojas de cálculo de solo lectura recomendadas' en la configuración de protección de Excel?",
+                options: [
+                    "Que el archivo se cifra de forma que nadie pueda editarlo jamás.",
+                    "Una sugerencia visual al abrir el archivo sugiriendo abrirlo como solo lectura, pero el usuario puede elegir editarlo libremente.",
+                    "Que solo se puede abrir utilizando un visor en línea de Microsoft Edge.",
+                    "Bloquea la exportación de la hoja de cálculo a formato PDF."
+                ],
+                correct: 1,
+                hint: "Es una directriz blanda de seguridad; previene ediciones accidentales enviando una alerta al abrir, pero no encripta el archivo."
+            },
+            {
+                id: 15,
+                text: "Para aplicar una firma digital que valide la autenticidad e integridad del autor de un libro de Excel sin cifrar los datos, se utiliza:",
+                options: [
+                    "La firma con cifrado SHA-512 simétrico.",
+                    "Una línea de firma o firma digital con certificado digital.",
+                    "Un comentario en celda firmado con clave pública.",
+                    "Un sello de agua con imagen protegida con contraseña."
+                ],
+                correct: 1,
+                hint: "Las firmas digitales aseguran la autoría e indican si el documento fue alterado después de su firma, usando criptografía asimétrica."
+            },
+            {
+                id: 16,
+                text: "¿Cómo se llama la tecnología de Microsoft que permite aplicar políticas de encriptación y permisos persistentes a nivel corporativo en Excel (por ejemplo, 'Solo ver, no imprimir')?",
+                options: [
+                    "Excel Defender Shield",
+                    "Microsoft Information Protection (AIP / MIP)",
+                    "BitLocker for Office Applications",
+                    "Active Directory Excel Lock (ADEL)"
+                ],
+                correct: 1,
+                hint: "Es el estándar corporativo para clasificar y proteger datos mediante etiquetas de sensibilidad que cifran el contenido incluso fuera de la empresa."
+            },
+            {
+                id: 17,
+                text: "Al proteger una hoja de cálculo, ¿cuál de las siguientes opciones NO se puede configurar o limitar individualmente para los usuarios?",
+                options: [
+                    "Insertar hipervínculos",
+                    "Formatear celdas",
+                    "Usar la funcionalidad de Autocorrección ortográfica",
+                    "Eliminar columnas"
+                ],
+                correct: 2,
+                hint: "La corrección ortográfica es una función global del cliente de Office, no se puede desactivar desde el cuadro de restricciones de la hoja."
+            },
+            {
+                id: 18,
+                text: "Si un archivo de Excel está encriptado con contraseña de apertura, ¿qué sucede con las fórmulas complejas del libro?",
+                options: [
+                    "Se desactivan y guardan temporalmente en texto sin cifrar en la carpeta Temp.",
+                    "Se encriptan junto con el resto del contenido y solo se descifran en la RAM una vez introducida la clave correcta.",
+                    "Se convierten a valores planos para optimizar el cifrado.",
+                    "Sufren un proceso de hash MD5 de una sola vía."
+                ],
+                correct: 1,
+                hint: "Todo el documento (datos, fórmulas, estilos y macros) se convierte en un paquete seguro ilegible hasta que la clave simétrica lo descifra."
+            },
+            {
+                id: 19,
+                text: "¿Por qué se desaconseja usar herramientas de 'desbloqueo' en línea que prometen descifrar archivos de Excel .xlsx protegidos en segundos?",
+                options: [
+                    "Porque dañan la pantalla del dispositivo debido al alto consumo de GPU.",
+                    "Porque requieres subir tu archivo con datos potencialmente confidenciales a servidores desconocidos, exponiéndote a fugas de información.",
+                    "Porque Excel se desinstala de tu PC automáticamente si detecta hackeo.",
+                    "Porque la inteligencia artificial de Microsoft detectará tu IP y baneará tu licencia."
+                ],
+                correct: 1,
+                hint: "Es un riesgo de seguridad de la información extremo subir libros sensibles a servidores webs gratuitos administrados por terceros."
+            },
+            {
+                id: 20,
+                text: "En un escenario empresarial avanzado, ¿cuál es el método más robusto para proteger la confidencialidad de la información contenida en las hojas de Excel que se comparten públicamente?",
+                options: [
+                    "Pintar el color de letra del mismo color del fondo (ej. texto blanco sobre fondo blanco).",
+                    "Usar Excel en la nube restringiendo el acceso por cuentas de Microsoft identificadas y no enviar copias físicas cifradas.",
+                    "Proteger la hoja con una clave simple de 4 dígitos numéricos.",
+                    "Exportar todo a formato Word cifrado con una macro básica."
+                ],
+                correct: 1,
+                hint: "Mantener el archivo centralizado en el servidor en la nube con gestión de identidad (IAM) evita la proliferación de copias físicas vulnerables."
+            }
+        ];
+
+        // App variables
+        let currentQuestionIdx = 0;
+        let scoreCorrect = 0;
+        let scoreIncorrect = 0;
+        let timerSeconds = 300; // 5 minutes total
+        let timerInterval = null;
+        let gameActive = false;
+        let userResponses = []; // Track details of user answers
+
+        // Sound simulation or visual response effect
+        function triggerGlitchEffect() {
+            const container = document.getElementById('chat-messages');
+            container.classList.add('animate-pulse');
+            setTimeout(() => {
+                container.classList.remove('animate-pulse');
+            }, 300);
+        }
+
+        // Initialize / Start the Simulation
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            
+            currentQuestionIdx = 0;
+            scoreCorrect = 0;
+            scoreIncorrect = 0;
+            timerSeconds = 300;
+            userResponses = [];
+            gameActive = true;
+
+            updateStats();
+            startTimer();
+
+            // Clear chat log (except introductory greeting)
+            const chatContainer = document.getElementById('chat-messages');
+            chatContainer.innerHTML = '';
+            
+            appendBotMessage("INICIANDO EVALUACIÓN... Protocolo cifrado AES activado. Estableciendo conexión de datos con el usuario. Analizando vulnerabilidades... Listo. Pregunta 1 entrante.");
+            
+            showQuestion();
+        }
+
+        // Timer controller
+        function startTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            
+            const timerDisplay = document.getElementById('timer-display');
+            
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = "COLAX";
+                    systemCollapse();
+                    return;
+                }
+
+                timerSeconds--;
+                const mins = Math.floor(timerSeconds / 60);
+                const secs = timerSeconds % 60;
+                timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                // Urgency coloring
+                if (timerSeconds < 60) {
+                    timerDisplay.classList.add('text-red-500', 'animate-pulse');
+                    timerDisplay.classList.remove('text-green-500');
+                } else {
+                    timerDisplay.classList.remove('text-red-500', 'animate-pulse');
+                }
+            }, 1000);
+        }
+
+        // Append bot message bubble
+        function appendBotMessage(text, isError = false) {
+            const chatContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = "flex flex-col gap-1 max-w-[85%] self-start animate-fade-in";
+            
+            const senderName = isError ? "[ALERTA DE SISTEMA]" : "[SISTEMA V.E.R.A.]";
+            const textClass = isError ? "text-red-400 bg-red-950/20 border-red-900" : "text-green-400 bg-green-950/20 border-green-900";
+            const senderClass = isError ? "text-red-500 font-bold glow-red" : "text-green-600 font-bold";
+
+            messageDiv.innerHTML = `
+                <span class="text-xs ${senderClass}">${senderName}</span>
+                <div class="border ${textClass} p-3 rounded-tr-xl rounded-b-xl leading-relaxed">
+                    ${text}
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Append user message bubble
+        function appendUserMessage(text) {
+            const chatContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = "flex flex-col gap-1 max-w-[80%] self-end text-right";
+            
+            messageDiv.innerHTML = `
+                <span class="text-xs text-green-700 font-bold">[OPERADOR / TU]</span>
+                <div class="bg-green-950/60 border border-green-500 p-3 rounded-tl-xl rounded-b-xl text-green-300">
+                    ${text}
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Render current question in interactive space
+        function showQuestion() {
+            if (currentQuestionIdx >= questions.length) {
+                endGame(false);
+                return;
+            }
+
+            const currentQuestion = questions[currentQuestionIdx];
+            
+            // UI text update
+            document.getElementById('current-question-num').textContent = `PREGUNTA ${String(currentQuestionIdx + 1).padStart(2, '0')} / ${questions.length}`;
+            
+            // Present prompt to operator via chatbot stream
+            appendBotMessage(`Pregunta ${currentQuestionIdx + 1}: ${currentQuestion.text}`);
+
+            // Build Option Buttons
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "p-3 bg-black border border-green-900 text-green-400 rounded text-left text-xs md:text-sm hover:bg-green-950 hover:border-green-500 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-green-400 glitch-hover";
+                btn.onclick = () => submitAnswer(idx);
+                
+                // Add index letters A, B, C, D
+                const letter = String.fromCharCode(65 + idx);
+                btn.innerHTML = `<span class="text-green-600 font-bold mr-2">[${letter}]</span> ${opt}`;
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // User selected an option
+        function submitAnswer(selectedIndex) {
+            if (!gameActive) return;
+
+            const q = questions[currentQuestionIdx];
+            const selectedText = q.options[selectedIndex];
+            const isCorrect = (selectedIndex === q.correct);
+
+            // Print choice in terminal communication log
+            appendUserMessage(selectedText);
+
+            // Log details for the final audit report
+            userResponses.push({
+                questionNum: q.id,
+                questionText: q.text,
+                userAnswer: selectedText,
+                correctAnswer: q.options[q.correct],
+                isCorrect: isCorrect,
+                hint: q.hint
+            });
+
+            if (isCorrect) {
+                scoreCorrect++;
+                appendBotMessage("✓ RESPUESTA CORRECTA. Parámetro validado. El cifrado sigue estable.");
+            } else {
+                scoreIncorrect++;
+                triggerGlitchEffect();
+                appendBotMessage(`✗ RESPUESTA ERRÓNEA. Protocolo fallido. El sistema V.E.R.A. ha interceptado la fuga.<br><small class="text-red-400/90 font-mono">Pista analítica: ${q.hint}</small>`, true);
+                
+                // Deduct 15 seconds as a security penalty!
+                timerSeconds = Math.max(0, timerSeconds - 15);
+                appendBotMessage("⚠️ ADVERTENCIA: Penalización de cortafuegos de -15 segundos por error detectado.", true);
+            }
+
+            updateStats();
+            currentQuestionIdx++;
+
+            // Wait a brief moment to show next question so user can digest feedback
+            setTimeout(() => {
+                if (gameActive) {
+                    showQuestion();
+                }
+            }, 1800);
+        }
+
+        // Refresh stats on UI
+        function updateStats() {
+            document.getElementById('stat-progress').textContent = `${currentQuestionIdx} / 20`;
+            document.getElementById('stat-correct').textContent = String(scoreCorrect).padStart(2, '0');
+            document.getElementById('stat-incorrect').textContent = String(scoreIncorrect).padStart(2, '0');
+
+            const pct = (currentQuestionIdx / questions.length) * 100;
+            document.getElementById('stat-progress-bar').style.width = `${pct}%`;
+        }
+
+        // Handle case where system fails or collapses
+        function systemCollapse() {
+            gameActive = false;
+            clearInterval(timerInterval);
+
+            const chatContainer = document.getElementById('chat-messages');
+            chatContainer.innerHTML = '';
+            
+            appendBotMessage("🔴 SISTEMA DE CORTAFUEGOS CAÍDO. TIEMPO AGOTADO. El cifrado del archivo de Excel ha fallado críticamente. Acceso bloqueado permanentemente por la IA V.E.R.A.", true);
+            
+            endGame(true);
+        }
+
+        // End evaluation screen trigger
+        function endGame(wasCollapsed = false) {
+            gameActive = false;
+            clearInterval(timerInterval);
+
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            const ratingEl = document.getElementById('final-rating');
+            const accuracyEl = document.getElementById('final-accuracy');
+            const titleEl = document.getElementById('end-title');
+            const subtitleEl = document.getElementById('end-subtitle');
+
+            const totalScore = scoreCorrect;
+            const accuracyPct = Math.round((scoreCorrect / questions.length) * 100);
+            
+            accuracyEl.textContent = `${accuracyPct}%`;
+
+            if (wasCollapsed) {
+                titleEl.textContent = "COLAPSO CRÍTICO";
+                titleEl.className = "retro-title text-3xl font-bold mb-2 uppercase tracking-wide glow-red text-red-500";
+                subtitleEl.textContent = "El tiempo expiró y los cortafuegos bloquearon tu sesión.";
+                ratingEl.textContent = "SABOTAJE";
+                ratingEl.className = "text-xl font-bold text-red-500 glow-red";
+                appendBotMessage("Análisis fallido. Conexión cerrada abruptamente.", true);
+                return;
+            }
+
+            // Normal finish based on scores
+            titleEl.className = "retro-title text-3xl font-bold mb-2 uppercase tracking-wide glow-green text-green-400";
+            if (accuracyPct >= 90) {
+                ratingEl.textContent = "ADMINISTRADOR SEC";
+                ratingEl.className = "text-xl font-bold text-green-400 glow-green";
+                subtitleEl.textContent = "Excelente. Posees control criptográfico absoluto sobre los archivos de Excel de la terminal.";
+                appendBotMessage("✓ DIAGNÓSTICO: Has superado todas las expectativas del protocolo V.E.R.A. Acceso de administrador de base de datos otorgado.");
+            } else if (accuracyPct >= 70) {
+                ratingEl.textContent = "ANALISTA CIBERNÉTICO";
+                ratingEl.className = "text-xl font-bold text-yellow-500";
+                subtitleEl.textContent = "Nivel de seguridad estable. Tus archivos Excel están a salvo de la mayoría de los intrusos.";
+                appendBotMessage("✓ DIAGNÓSTICO: Pruebas validadas. Recomendamos realizar auditoría en las respuestas fallidas.");
+            } else {
+                ratingEl.textContent = "USUARIO RESTRINGIDO";
+                ratingEl.className = "text-xl font-bold text-red-500 glow-red";
+                subtitleEl.textContent = "Riesgo potencial detectado. Tus hojas de datos son vulnerables a descifrado hostil.";
+                appendBotMessage("⚠️ DIAGNÓSTICO: Fuga de conocimientos detectada. Repasa la bitácora de errores para enmendar brechas críticas.", true);
+            }
+        }
+
+        // Show learning/error logger modal
+        function showReport() {
+            const modal = document.getElementById('report-modal');
+            const container = document.getElementById('report-content');
+            container.innerHTML = '';
+
+            if (userResponses.length === 0) {
+                container.innerHTML = `<p class="text-xs text-green-600 text-center py-4">NO HAY REGISTROS DISPONIBLES. INICIA LA EVALUACIÓN.</p>`;
+                modal.classList.remove('hidden');
+                return;
+            }
+
+            userResponses.forEach((res, idx) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `p-4 rounded border text-xs leading-relaxed ${res.isCorrect ? 'bg-green-950/10 border-green-900/60' : 'bg-red-950/10 border-red-950'}`;
+                
+                const statusBadge = res.isCorrect 
+                    ? `<span class="px-2 py-0.5 bg-green-900 text-green-400 rounded mr-2 font-bold font-mono">CORRECTO</span>` 
+                    : `<span class="px-2 py-0.5 bg-red-900 text-red-400 rounded mr-2 font-bold font-mono">X FALLO</span>`;
+
+                itemDiv.innerHTML = `
+                    <div class="flex justify-between items-start gap-2 mb-2">
+                        <span class="text-green-700 font-bold">PREGUNTA ${res.questionNum}</span>
+                        ${statusBadge}
+                    </div>
+                    <p class="text-green-300 font-semibold mb-2">${res.questionText}</p>
+                    <div class="space-y-1 mb-3 text-green-400">
+                        <div><strong class="text-green-600">Tu respuesta:</strong> ${res.userAnswer}</div>
+                        ${!res.isCorrect ? `<div><strong class="text-green-500">Respuesta Correcta:</strong> ${res.correctAnswer}</div>` : ''}
+                    </div>
+                    <div class="p-2.5 bg-black/60 rounded border border-green-950 text-green-500">
+                        <strong class="text-green-400 font-bold block mb-0.5 uppercase tracking-wider text-[10px]">[ANÁLISIS V.E.R.A.]</strong>
+                        ${res.hint}
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeReport() {
+            document.getElementById('report-modal').classList.add('hidden');
+        }
+
+        // Restart terminal quiz state
+        function resetGame() {
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            
+            const timerDisplay = document.getElementById('timer-display');
+            timerDisplay.textContent = "05:00";
+            timerDisplay.classList.remove('text-red-500', 'animate-pulse');
+            timerDisplay.classList.add('text-green-500');
+
+            currentQuestionIdx = 0;
+            scoreCorrect = 0;
+            scoreIncorrect = 0;
+            updateStats();
+
+            const chatContainer = document.getElementById('chat-messages');
+            chatContainer.innerHTML = `
+                <div class="flex flex-col gap-1 max-w-[85%]">
+                    <span class="text-xs text-green-600 uppercase font-bold">[SISTEMA V.E.R.A.]</span>
+                    <div class="bg-green-950/30 border border-green-900 p-3 rounded-tr-xl rounded-b-xl text-green-400">
+                        Sesión restaurada. He recargado el cortafuegos. Introduce la autorización de seguridad para reiniciar el escaneo de tus conocimientos sobre protección de datos en Excel.
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
